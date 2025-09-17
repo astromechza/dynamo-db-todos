@@ -129,9 +129,9 @@ func main() {
 	if region == "" {
 		log.Fatal("AWS_REGION environment variable not set")
 	}
-	tableName = os.Getenv("DYNAMODB_TABLE")
+	tableName = os.Getenv("AWS_DYNAMODB_TABLE")
 	if tableName == "" {
-		log.Fatal("DYNAMODB_TABLE environment variable not set")
+		log.Fatal("AWS_DYNAMODB_TABLE environment variable not set")
 	}
 	bedrockModelName = os.Getenv("AWS_BEDROCK_MODEL_NAME")
 	if bedrockModelName == "" {

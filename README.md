@@ -37,7 +37,7 @@ A simple Go HTML application that provides a to-do list over HTTP, backed by Ama
 
     ```bash
     export AWS_REGION=your-region
-    export DYNAMODB_TABLE=your-table-name
+    export AWS_DYNAMODB_TABLE=your-table-name
     ```
 
 3.  **Run the Application:**
@@ -55,6 +55,6 @@ A simple Go HTML application that provides a to-do list over HTTP, backed by Ama
 ## Environment Variables
 
 - `AWS_REGION`: The AWS region to use.
-- `DYNAMODB_TABLE`: The name of the DynamoDB table to use.
+- `AWS_DYNAMODB_TABLE`: The name of the DynamoDB table to use.
 - `AWS_BEDROCK_MODEL_NAME`: The name of the AWS Bedrock model to use for generating todos. Defaults to `amazon.titan-text-lite-v1`.
 - `MOTD`: An optional message of the day to display on the page.
