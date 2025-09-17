@@ -51,3 +51,10 @@ A simple Go HTML application that provides a to-do list over HTTP, backed by Ama
 4.  **Access the Application:**
 
     Open your web browser and navigate to `http://localhost:8080`.
+
+## Environment Variables
+
+- `AWS_REGION`: The AWS region to use.
+- `DYNAMODB_TABLE`: The name of the DynamoDB table to use.
+- `AWS_BEDROCK_MODEL_NAME`: The name of the AWS Bedrock model to use for generating todos. Defaults to `amazon.titan-text-lite-v1`.
+- `MOTD`: An optional message of the day to display on the page.
