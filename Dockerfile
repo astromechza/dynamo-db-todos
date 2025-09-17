@@ -1,16 +1,7 @@
-# syntax=docker/dockerfile:1
+# GoReleaser builds the Go binary and provides it in the build context.
+# This Dockerfile just packages that binary into a minimal image.
+# https://goreleaser.com/customization/docker/#the-docker-build-context
+FROM gcr.io/distroless/static:nonroot
 
-# Build stage
-FROM golang:1.24-alpine AS builder
-WORKDIR /app
-COPY . .
-RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o app .
-
-# Final stage
-FROM alpine:latest
-WORKDIR /app
-# Copy the binary from the builder stage and set the owner to the non-root 'nobody' user.
-COPY --from=builder --chown=nobody:nobody /app/app .
-# Switch to the non-root user.
-USER nobody
-ENTRYPOINT ["./app"]
+COPY dynamo-db-todos /
+ENTRYPOINT ["/dynamo-db-todos"]
