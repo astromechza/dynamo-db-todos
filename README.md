@@ -31,7 +31,13 @@ A simple Go HTML application that provides a to-do list over HTTP, backed by Ama
         --region eu-central-1
     ```
 
-2.  **Set Environment Variables:**
+## Deployment
+
+The application can be run locally as a standard web server or deployed as an AWS Lambda function.
+
+### Local
+
+1.  **Set Environment Variables:**
 
     Export the following environment variables, replacing the values with the ones you used in the previous step:
 
@@ -40,7 +46,7 @@ A simple Go HTML application that provides a to-do list over HTTP, backed by Ama
     export AWS_DYNAMODB_TABLE=your-table-name
     ```
 
-3.  **Run the Application:**
+2.  **Run the Application:**
 
     Start the web server with the following command:
 
@@ -48,9 +54,37 @@ A simple Go HTML application that provides a to-do list over HTTP, backed by Ama
     go run main.go
     ```
 
-4.  **Access the Application:**
+3.  **Access the Application:**
 
     Open your web browser and navigate to `http://localhost:8080`.
+
+### AWS Lambda
+
+To deploy the application to AWS Lambda, you need to build a Linux binary and package it as a zip file.
+
+1.  **Build the Executable:**
+
+    Compile the application for the Lambda environment:
+
+    ```bash
+    GOOS=linux GOARCH=amd64 go build -o bootstrap main.go
+    ```
+
+2.  **Create the Zip Package:**
+
+    Package the executable into a zip file:
+
+    ```bash
+    zip lambda.zip bootstrap
+    ```
+
+3.  **Deploy to Lambda:**
+
+    - Create a new Lambda function with a Go runtime.
+    - Upload the `lambda.zip` file as the function code.
+    - Set the handler to `bootstrap`.
+    - Configure the necessary environment variables (`AWS_REGION`, `AWS_DYNAMODB_TABLE`).
+    - Set up an API Gateway trigger to receive HTTP requests.
 
 ## Environment Variables
 

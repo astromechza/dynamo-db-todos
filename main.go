@@ -16,12 +16,14 @@ import (
 	"unicode"
 	"unicode/utf8"
 
+	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
 	"github.com/aws/aws-sdk-go-v2/service/bedrockruntime"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
+	"github.com/awslabs/aws-lambda-go-api-proxy/httpadapter"
 	"github.com/google/uuid"
 )
 
@@ -38,6 +40,7 @@ var (
 	tableName        string
 	bedrockModelName string
 	messageOfTheDay  string
+	httpAdapter      *httpadapter.HandlerAdapter
 )
 
 const indexTemplate = `
@@ -125,7 +128,7 @@ type TitanTextResponse struct {
 	} `json:"results"`
 }
 
-func main() {
+func init() {
 	region := os.Getenv("AWS_REGION")
 	if region == "" {
 		log.Fatal("AWS_REGION environment variable not set")
@@ -148,17 +151,32 @@ func main() {
 	dynamoClient = dynamodb.NewFromConfig(cfg)
 	bedrockClient = bedrockruntime.NewFromConfig(cfg)
 
-	http.HandleFunc("/", listHandler)
-	http.HandleFunc("/add", addHandler)
-	http.HandleFunc("/delete", deleteHandler)
-	http.HandleFunc("/generate", generateHandler)
+	mux := http.NewServeMux()
+	mux.HandleFunc("/", listHandler)
+	mux.HandleFunc("/add", addHandler)
+	mux.HandleFunc("/delete", deleteHandler)
+	mux.HandleFunc("/generate", generateHandler)
+	httpAdapter = httpadapter.New(mux)
+}
 
-	log.Printf("Server starting on port 8080...")
-	if messageOfTheDay != "" {
-		log.Printf("Message of the day: %s", messageOfTheDay)
+func main() {
+	if os.Getenv("_LAMBDA_SERVER_PORT") != "" {
+		log.Printf("Starting lambda handler")
+		lambda.Start(httpAdapter.ProxyWithContext)
+	} else {
+		log.Printf("Server starting on port 8080...")
+		if messageOfTheDay != "" {
+			log.Printf("Message of the day: %s", messageOfTheDay)
+		}
+		log.Printf("Using bedrock model: %s", bedrockModelName)
+		// a http.ServeMux is created in the init() function, but we need to register the handlers with the
+		// http.DefaultServeMux for the local server to work.
+		http.HandleFunc("/", listHandler)
+		http.HandleFunc("/add", addHandler)
+		http.HandleFunc("/delete", deleteHandler)
+		http.HandleFunc("/generate", generateHandler)
+		log.Fatal(http.ListenAndServe(":8080", nil))
 	}
-	log.Printf("Using bedrock model: %s", bedrockModelName)
-	log.Fatal(http.ListenAndServe(":8080", nil))
 }
 
 func listHandler(w http.ResponseWriter, r *http.Request) {
@@ -236,7 +254,7 @@ func generateHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-		prompt := `User: Generate a single, short, imaginative to-do list item for a fantasy adventurer.
+	prompt := `User: Generate a single, short, imaginative to-do list item for a fantasy adventurer.
 
 AI: Sharpen sword before the goblin raid
 
@@ -267,7 +285,7 @@ AI:`
 	}
 
 	modelID := bedrockModelName
-	output, err := bedrockClient.InvokeModel(context.TODO(), &bedrockruntime.InvokeModelInput{
+	out, err := bedrockClient.InvokeModel(context.TODO(), &bedrockruntime.InvokeModelInput{
 		Body:        payload,
 		ModelId:     aws.String(modelID),
 		ContentType: aws.String("application/json"),
@@ -280,7 +298,7 @@ AI:`
 	}
 
 	var response TitanTextResponse
-	err = json.Unmarshal(output.Body, &response)
+	err = json.Unmarshal(out.Body, &response)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("failed to unmarshal response: %v", err), http.StatusInternalServerError)
 		return
