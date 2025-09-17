@@ -26,6 +26,7 @@ dockers:
     use: buildx
     build_flag_templates:
       - "--platform=linux/amd64,linux/arm64"
+      - "--push"
       - "--label=org.opencontainers.image.title={{ .ProjectName }}"
       - "--label=org.opencontainers.image.description={{ .ProjectName }}"
       - "--label=org.opencontainers.image.url=https://github.com/{{ .Env.GITHUB_REPOSITORY_OWNER }}/{{ .ProjectName }}"

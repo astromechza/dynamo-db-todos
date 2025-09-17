@@ -32,9 +32,11 @@ type Todo struct {
 }
 
 var (
-	dynamoClient  *dynamodb.Client
-	bedrockClient *bedrockruntime.Client
-	tableName     string
+	dynamoClient      *dynamodb.Client
+	bedrockClient     *bedrockruntime.Client
+	tableName         string
+	bedrockModelName  string
+	messageOfTheDay   string
 )
 
 const indexTemplate = `
@@ -63,6 +65,9 @@ const indexTemplate = `
 </head>
 <body>
     <h1>Todo List</h1>
+    {{if .MOTD}}
+    <p><b>Message of the day:</b> {{.MOTD}}</p>
+    {{end}}
     <form action="/add" method="post" style="display:inline-block; margin-bottom: 20px;">
         <input type="text" name="text" size="50">
         <input type="submit" value="Add">
@@ -128,6 +133,11 @@ func main() {
 	if tableName == "" {
 		log.Fatal("DYNAMODB_TABLE environment variable not set")
 	}
+	bedrockModelName = os.Getenv("AWS_BEDROCK_MODEL_NAME")
+	if bedrockModelName == "" {
+		bedrockModelName = "amazon.titan-text-lite-v1"
+	}
+	messageOfTheDay = os.Getenv("MOTD")
 
 	cfg, err := config.LoadDefaultConfig(context.TODO(), config.WithRegion(region))
 	if err != nil {
@@ -142,7 +152,11 @@ func main() {
 	http.HandleFunc("/delete", deleteHandler)
 	http.HandleFunc("/generate", generateHandler)
 
-	log.Println("Server starting on port 8080...")
+	log.Printf("Server starting on port 8080...")
+	if messageOfTheDay != "" {
+		log.Printf("Message of the day: %s", messageOfTheDay)
+	}
+	log.Printf("Using bedrock model: %s", bedrockModelName)
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }
 
@@ -159,7 +173,13 @@ func listHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = tmpl.Execute(w, todos)
+	err = tmpl.Execute(w, struct {
+		Todos []Todo
+		MOTD  string
+	}{
+		Todos: todos,
+		MOTD:  messageOfTheDay,
+	})
 	if err != nil {
 		http.Error(w, fmt.Sprintf("failed to execute template: %v", err), http.StatusInternalServerError)
 	}
@@ -220,7 +240,7 @@ func generateHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	modelID := "amazon.titan-text-lite-v1"
+	modelID := bedrockModelName
 	output, err := bedrockClient.InvokeModel(context.TODO(), &bedrockruntime.InvokeModelInput{
 		Body:        payload,
 		ModelId:     aws.String(modelID),
