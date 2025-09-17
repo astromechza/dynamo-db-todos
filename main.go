@@ -84,7 +84,7 @@ const indexTemplate = `
             </tr>
         </thead>
         <tbody>
-            {{range .}}
+            {{range .Todos}}
             <tr>
                 <td>{{.CreatedAtFormatted}}</td>
                 <td>{{.Text}}</td>
@@ -224,7 +224,15 @@ func generateHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	prompt := "Generate a short, fake to-do list item. It must be a single sentence, not a list."
+	prompt := `Generate a single, short, realistic to-do list item that an everyday person would write.
+
+Here are some examples of good to-do items:
+- "Buy milk and bread"
+- "Pay Taxes"
+- "Book holiday in Australia"
+- "Call the plumber about the leaky faucet"
+
+The to-do item should be a single, concise sentence or phrase. Do not add any extra commentary or explanation.`
 
 	request := TitanTextRequest{
 		InputText: prompt,
