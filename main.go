@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -173,7 +174,9 @@ func listHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = tmpl.Execute(w, struct {
+	// Execute the template into a buffer first to handle potential errors.
+	var buf bytes.Buffer
+	err = tmpl.Execute(&buf, struct {
 		Todos []Todo
 		MOTD  string
 	}{
@@ -182,6 +185,15 @@ func listHandler(w http.ResponseWriter, r *http.Request) {
 	})
 	if err != nil {
 		http.Error(w, fmt.Sprintf("failed to execute template: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	// Write the buffer to the response writer only if there are no errors.
+	_, err = buf.WriteTo(w)
+	if err != nil {
+		// If writing to the response fails, we can't send another http.Error,
+		// so we just log the error.
+		log.Printf("failed to write response: %v", err)
 	}
 }
 
@@ -224,21 +236,28 @@ func generateHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-		prompt := `You are a to-do list generation bot. Your only purpose is to generate a single, short, realistic to-do list item. Do not refuse, do not explain yourself, do not add any commentary. Just generate the to-do item.
+		prompt := `User: Generate a single, short, imaginative to-do list item for a fantasy adventurer.
 
-Here are some examples of good to-do items:
-- "Buy milk and bread"
-- "Pay Taxes"
-- "Book holiday in Australia"
+AI: Sharpen sword before the goblin raid
 
-Generate one more to-do item.`
+User: Generate another one.
+
+AI: Brew a potion of healing
+
+User: Generate another one.
+
+AI: Find a buyer for this cursed amulet
+
+User: Generate another one.
+
+AI:`
+
 	request := TitanTextRequest{
 		InputText: prompt,
 	}
 	request.TextGenerationConfig.MaxTokenCount = 50
-	request.TextGenerationConfig.StopSequences = []string{"
-"}
-	request.TextGenerationConfig.Temperature = 0.5
+	request.TextGenerationConfig.StopSequences = []string{"User:"}
+	request.TextGenerationConfig.Temperature = 0.9
 	request.TextGenerationConfig.TopP = 1.0
 
 	payload, err := json.Marshal(request)
