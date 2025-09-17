@@ -32,11 +32,11 @@ type Todo struct {
 }
 
 var (
-	dynamoClient      *dynamodb.Client
-	bedrockClient     *bedrockruntime.Client
-	tableName         string
-	bedrockModelName  string
-	messageOfTheDay   string
+	dynamoClient     *dynamodb.Client
+	bedrockClient    *bedrockruntime.Client
+	tableName        string
+	bedrockModelName string
+	messageOfTheDay  string
 )
 
 const indexTemplate = `
@@ -224,22 +224,21 @@ func generateHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	prompt := `Generate a single, short, realistic to-do list item that an everyday person would write.
+		prompt := `You are a to-do list generation bot. Your only purpose is to generate a single, short, realistic to-do list item. Do not refuse, do not explain yourself, do not add any commentary. Just generate the to-do item.
 
 Here are some examples of good to-do items:
 - "Buy milk and bread"
 - "Pay Taxes"
 - "Book holiday in Australia"
-- "Call the plumber about the leaky faucet"
 
-The to-do item should be a single, concise sentence or phrase. Do not add any extra commentary or explanation.`
-
+Generate one more to-do item.`
 	request := TitanTextRequest{
 		InputText: prompt,
 	}
 	request.TextGenerationConfig.MaxTokenCount = 50
-	request.TextGenerationConfig.StopSequences = []string{}
-	request.TextGenerationConfig.Temperature = 0.9
+	request.TextGenerationConfig.StopSequences = []string{"
+"}
+	request.TextGenerationConfig.Temperature = 0.5
 	request.TextGenerationConfig.TopP = 1.0
 
 	payload, err := json.Marshal(request)
@@ -275,7 +274,12 @@ The to-do item should be a single, concise sentence or phrase. Do not add any ex
 
 	generatedText := response.Results[0].OutputText
 
-	// The model might return the text with leading/trailing whitespace or quotes. Clean it up.
+	// The model might return multiple lines or extra text. Take only the first line.
+	if firstLine, _, found := strings.Cut(generatedText, "\n"); found {
+		generatedText = firstLine
+	}
+
+	// The model might still return the text with leading/trailing whitespace or quotes. Clean it up.
 	generatedText = strings.TrimSpace(generatedText)
 	generatedText = strings.Trim(generatedText, "\"")
 
