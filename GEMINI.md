@@ -67,6 +67,10 @@ To deploy the application to AWS Lambda, follow these steps:
 - `AWS_BEDROCK_MODEL_NAME`: The name of the AWS Bedrock model to use for generating todos. If not set, the generate feature will be disabled. Example: `amazon.titan-text-lite-v1`.
 - `MOTD`: An optional message of the day to display on the page.
 
+## Versioning
+
+This project uses semantic versioning (e.g., `v1.2.0`). Before creating a new release, please check the existing tags to determine the next appropriate version number.
+
 ## Code Quality
 
 After making any changes to the Go code, please run the following commands to ensure code quality and correctness:
