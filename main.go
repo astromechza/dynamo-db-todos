@@ -137,10 +137,6 @@ type TitanTextResponse struct {
 }
 
 func init() {
-	region := os.Getenv("AWS_REGION")
-	if region == "" {
-		log.Fatal("AWS_REGION environment variable not set")
-	}
 	tableName = os.Getenv("AWS_DYNAMODB_TABLE")
 	if tableName != "" {
 		isDynamoDBConfigured = true
@@ -153,7 +149,14 @@ func init() {
 
 	messageOfTheDay = os.Getenv("MOTD")
 
-	cfg, err := config.LoadDefaultConfig(context.TODO(), config.WithRegion(region))
+	var err error
+	var cfg aws.Config
+	region := os.Getenv("AWS_REGION")
+	if region != "" {
+		cfg, err = config.LoadDefaultConfig(context.TODO(), config.WithRegion(region))
+	} else {
+		cfg, err = config.LoadDefaultConfig(context.TODO())
+	}
 	if err != nil {
 		log.Fatalf("unable to load SDK config, %v", err)
 	}

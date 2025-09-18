@@ -39,10 +39,10 @@ The application can be run locally as a standard web server or deployed as an AW
 
 1.  **Set Environment Variables:**
 
-    Export the required `AWS_REGION` environment variable. The other variables are optional and enable specific features.
+    The environment variables are optional and enable specific features.
 
     ```bash
-    export AWS_REGION=your-region
+    # export AWS_REGION=your-region # Optional
     # export AWS_DYNAMODB_TABLE=your-table-name # Optional
     # export AWS_BEDROCK_MODEL_NAME=amazon.titan-text-lite-v1 # Optional
     ```
@@ -89,7 +89,7 @@ To deploy the application to AWS Lambda, you need to build a Linux binary and pa
 
 ## Environment Variables
 
-- `AWS_REGION`: The AWS region to use. This is required.
+- `AWS_REGION`: The AWS region to use. If not set, the application will attempt to determine the region from the environment (e.g., IAM role).
 - `AWS_DYNAMODB_TABLE`: The name of the DynamoDB table to use. If not set, the application will start, but adding, deleting, and listing todos will be disabled.
 - `AWS_BEDROCK_MODEL_NAME`: The name of the AWS Bedrock model to use for generating todos. If not set, the generate feature will be disabled. Example: `amazon.titan-text-lite-v1`.
 - `MOTD`: An optional message of the day to display on the page.
