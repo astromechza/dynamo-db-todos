@@ -35,12 +35,14 @@ type Todo struct {
 }
 
 var (
-	dynamoClient     *dynamodb.Client
-	bedrockClient    *bedrockruntime.Client
-	tableName        string
-	bedrockModelName string
-	messageOfTheDay  string
-	httpAdapter      *httpadapter.HandlerAdapter
+	dynamoClient         *dynamodb.Client
+	bedrockClient        *bedrockruntime.Client
+	tableName            string
+	bedrockModelName     string
+	isDynamoDBConfigured bool
+	isBedrockConfigured  bool
+	messageOfTheDay      string
+	httpAdapter          *httpadapter.HandlerAdapter
 )
 
 const indexTemplate = `
@@ -72,12 +74,18 @@ const indexTemplate = `
     {{if .MOTD}}
     <p><b>Message of the day:</b> {{.MOTD}}</p>
     {{end}}
+    {{if not .IsDynamoDBConfigured}}
+    <p style="color: red;"><b>Warning:</b> AWS_DYNAMODB_TABLE environment variable not set. Adding and deleting todos is disabled.</p>
+    {{end}}
+    {{if not .IsBedrockConfigured}}
+    <p style="color: red;"><b>Warning:</b> AWS_BEDROCK_MODEL_NAME environment variable not set. Generating todos is disabled.</p>
+    {{end}}
     <form action="/add" method="post" style="display:inline-block; margin-bottom: 20px;">
-        <input type="text" name="text" size="50">
-        <input type="submit" value="Add">
+        <input type="text" name="text" size="50" {{if not .IsDynamoDBConfigured}}disabled{{end}}>
+        <input type="submit" value="Add" {{if not .IsDynamoDBConfigured}}disabled{{end}}>
     </form>
     <form action="/generate" method="post" style="display:inline-block;">
-        <input type="submit" value="Generate">
+        <input type="submit" value="Generate" {{if not .IsBedrockConfigured}}disabled{{end}}>
     </form>
     <table>
         <thead>
@@ -134,13 +142,15 @@ func init() {
 		log.Fatal("AWS_REGION environment variable not set")
 	}
 	tableName = os.Getenv("AWS_DYNAMODB_TABLE")
-	if tableName == "" {
-		log.Fatal("AWS_DYNAMODB_TABLE environment variable not set")
+	if tableName != "" {
+		isDynamoDBConfigured = true
 	}
+
 	bedrockModelName = os.Getenv("AWS_BEDROCK_MODEL_NAME")
-	if bedrockModelName == "" {
-		bedrockModelName = "amazon.titan-text-lite-v1"
+	if bedrockModelName != "" {
+		isBedrockConfigured = true
 	}
+
 	messageOfTheDay = os.Getenv("MOTD")
 
 	cfg, err := config.LoadDefaultConfig(context.TODO(), config.WithRegion(region))
@@ -168,7 +178,9 @@ func main() {
 		if messageOfTheDay != "" {
 			log.Printf("Message of the day: %s", messageOfTheDay)
 		}
-		log.Printf("Using bedrock model: %s", bedrockModelName)
+		if isBedrockConfigured {
+			log.Printf("Using bedrock model: %s", bedrockModelName)
+		}
 		// a http.ServeMux is created in the init() function, but we need to register the handlers with the
 		// http.DefaultServeMux for the local server to work.
 		http.HandleFunc("/", listHandler)
@@ -195,11 +207,15 @@ func listHandler(w http.ResponseWriter, r *http.Request) {
 	// Execute the template into a buffer first to handle potential errors.
 	var buf bytes.Buffer
 	err = tmpl.Execute(&buf, struct {
-		Todos []Todo
-		MOTD  string
+		Todos                []Todo
+		MOTD                 string
+		IsDynamoDBConfigured bool
+		IsBedrockConfigured  bool
 	}{
-		Todos: todos,
-		MOTD:  messageOfTheDay,
+		Todos:                todos,
+		MOTD:                 messageOfTheDay,
+		IsDynamoDBConfigured: isDynamoDBConfigured,
+		IsBedrockConfigured:  isBedrockConfigured,
 	})
 	if err != nil {
 		http.Error(w, fmt.Sprintf("failed to execute template: %v", err), http.StatusInternalServerError)
@@ -216,6 +232,10 @@ func listHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func addHandler(w http.ResponseWriter, r *http.Request) {
+	if !isDynamoDBConfigured {
+		http.Redirect(w, r, "/", http.StatusSeeOther)
+		return
+	}
 	if r.Method != http.MethodPost {
 		http.Redirect(w, r, "/", http.StatusSeeOther)
 		return
@@ -249,6 +269,10 @@ func addHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func generateHandler(w http.ResponseWriter, r *http.Request) {
+	if !isBedrockConfigured {
+		http.Redirect(w, r, "/", http.StatusSeeOther)
+		return
+	}
 	if r.Method != http.MethodPost {
 		http.Redirect(w, r, "/", http.StatusSeeOther)
 		return
@@ -330,6 +354,10 @@ AI:`
 }
 
 func deleteHandler(w http.ResponseWriter, r *http.Request) {
+	if !isDynamoDBConfigured {
+		http.Redirect(w, r, "/", http.StatusSeeOther)
+		return
+	}
 	if r.Method != http.MethodPost {
 		http.Redirect(w, r, "/", http.StatusSeeOther)
 		return
@@ -354,6 +382,9 @@ func deleteHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func getTodos() ([]Todo, error) {
+	if !isDynamoDBConfigured {
+		return []Todo{}, nil
+	}
 	out, err := dynamoClient.Scan(context.TODO(), &dynamodb.ScanInput{
 		TableName: aws.String(tableName),
 	})
