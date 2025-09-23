@@ -124,7 +124,7 @@ const indexTemplate = `
                 <td>{{.CreatedAtFormatted}}</td>
                 <td>{{.Text}}</td>
                 <td class="actions">
-                    <form action="{{.Prefix}}delete" method="post" style="display:inline;">
+                    <form action="{{$.Prefix}}delete" method="post" style="display:inline;">
                         <input type="hidden" name="id" value="{{.Id}}">
                         <input type="hidden" name="createdAtEpoch" value="{{.CreatedAtEpoch}}">
                         <input type="submit" value="Done">
