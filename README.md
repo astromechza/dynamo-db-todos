@@ -93,3 +93,9 @@ To deploy the application to AWS Lambda, you need to build a Linux binary and pa
 - `AWS_DYNAMODB_TABLE`: The name of the DynamoDB table to use. If not set, the application will start, but adding, deleting, and listing todos will be disabled.
 - `AWS_BEDROCK_MODEL_NAME`: The name of the AWS Bedrock model to use for generating todos. If not set, the generate feature will be disabled. Example: `amazon.titan-text-lite-v1`.
 - `MOTD`: An optional message of the day to display on the page.
+
+## Proxy Configuration
+
+When running the application behind a reverse proxy that exposes it on a subpath (e.g., `/todos`), the application needs to know the prefix to generate correct URLs.
+
+- `X-Forwarded-Prefix`: This HTTP header should be set by the proxy to the path prefix. For example, if the application is available at `http://example.com/todos/`, the proxy should set the header `X-Forwarded-Prefix: /todos/`.
