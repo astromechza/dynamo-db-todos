@@ -59,6 +59,14 @@ The application can be run locally as a standard web server or deployed as an AW
 
     Open your web browser and navigate to `http://localhost:8080`.
 
+### Testing
+
+Before committing any changes, please run the unit tests:
+
+```bash
+go test
+```
+
 ### AWS Lambda
 
 To deploy the application to AWS Lambda, you need to build a Linux binary and package it as a zip file.

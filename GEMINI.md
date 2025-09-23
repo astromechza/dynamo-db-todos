@@ -79,4 +79,5 @@ After making any changes to the Go code, please run the following commands to en
 go build
 go fmt
 go vet
+go test
 ```
