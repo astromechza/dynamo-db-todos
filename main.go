@@ -27,6 +27,29 @@ import (
 	"github.com/google/uuid"
 )
 
+type loggingResponseWriter struct {
+	http.ResponseWriter
+	statusCode int
+}
+
+func NewLoggingResponseWriter(w http.ResponseWriter) *loggingResponseWriter {
+	return &loggingResponseWriter{w, http.StatusOK}
+}
+
+func (lrw *loggingResponseWriter) WriteHeader(code int) {
+	lrw.statusCode = code
+	lrw.ResponseWriter.WriteHeader(code)
+}
+
+func loggingMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		start := time.Now()
+		lrw := NewLoggingResponseWriter(w)
+		next.ServeHTTP(lrw, r)
+		log.Printf("%s %s %d %s", r.Method, r.URL.Path, lrw.statusCode, time.Since(start))
+	})
+}
+
 type Todo struct {
 	Id                 string
 	Text               string
@@ -169,7 +192,7 @@ func init() {
 	mux.HandleFunc("/add", addHandler)
 	mux.HandleFunc("/delete", deleteHandler)
 	mux.HandleFunc("/generate", generateHandler)
-	httpAdapter = httpadapter.New(mux)
+	httpAdapter = httpadapter.New(loggingMiddleware(mux))
 }
 
 func main() {
@@ -184,13 +207,12 @@ func main() {
 		if isBedrockConfigured {
 			log.Printf("Using bedrock model: %s", bedrockModelName)
 		}
-		// a http.ServeMux is created in the init() function, but we need to register the handlers with the
-		// http.DefaultServeMux for the local server to work.
-		http.HandleFunc("/", listHandler)
-		http.HandleFunc("/add", addHandler)
-		http.HandleFunc("/delete", deleteHandler)
-		http.HandleFunc("/generate", generateHandler)
-		log.Fatal(http.ListenAndServe(":8080", nil))
+		mux := http.NewServeMux()
+		mux.HandleFunc("/", listHandler)
+		mux.HandleFunc("/add", addHandler)
+		mux.HandleFunc("/delete", deleteHandler)
+		mux.HandleFunc("/generate", generateHandler)
+		log.Fatal(http.ListenAndServe(":8080", loggingMiddleware(mux)))
 	}
 }
 
@@ -336,7 +358,7 @@ AI:`
 		return
 	}
 
-	generatedText := response.Results[0].OutputText
+	generatedText := strings.TrimSpace(response.Results[0].OutputText)
 
 	// The model might return multiple lines or extra text. Take only the first line.
 	if firstLine, _, found := strings.Cut(generatedText, "\n"); found {
