@@ -103,11 +103,11 @@ const indexTemplate = `
     {{if not .IsBedrockConfigured}}
     <p style="color: red;"><b>Warning:</b> AWS_BEDROCK_MODEL_NAME environment variable not set. Generating todos is disabled.</p>
     {{end}}
-    <form action="/add" method="post" style="display:inline-block; margin-bottom: 20px;">
+    <form action="{{.Prefix}}add" method="post" style="display:inline-block; margin-bottom: 20px;">
         <input type="text" name="text" size="50" {{if not .IsDynamoDBConfigured}}disabled{{end}}>
         <input type="submit" value="Add" {{if not .IsDynamoDBConfigured}}disabled{{end}}>
     </form>
-    <form action="/generate" method="post" style="display:inline-block;">
+    <form action="{{.Prefix}}generate" method="post" style="display:inline-block;">
         <input type="submit" value="Generate" {{if not .IsBedrockConfigured}}disabled{{end}}>
     </form>
     <table>
@@ -124,7 +124,7 @@ const indexTemplate = `
                 <td>{{.CreatedAtFormatted}}</td>
                 <td>{{.Text}}</td>
                 <td class="actions">
-                    <form action="/delete" method="post" style="display:inline;">
+                    <form action="{{.Prefix}}delete" method="post" style="display:inline;">
                         <input type="hidden" name="id" value="{{.Id}}">
                         <input type="hidden" name="createdAtEpoch" value="{{.CreatedAtEpoch}}">
                         <input type="submit" value="Done">
@@ -231,16 +231,22 @@ func listHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Execute the template into a buffer first to handle potential errors.
 	var buf bytes.Buffer
+	prefix := r.Header.Get("X-Forwarded-Prefix")
+	if prefix == "" {
+		prefix = "/"
+	}
 	err = tmpl.Execute(&buf, struct {
 		Todos                []Todo
 		MOTD                 string
 		IsDynamoDBConfigured bool
 		IsBedrockConfigured  bool
+		Prefix               string
 	}{
 		Todos:                todos,
 		MOTD:                 messageOfTheDay,
 		IsDynamoDBConfigured: isDynamoDBConfigured,
 		IsBedrockConfigured:  isBedrockConfigured,
+		Prefix:               prefix,
 	})
 	if err != nil {
 		http.Error(w, fmt.Sprintf("failed to execute template: %v", err), http.StatusInternalServerError)
@@ -256,19 +262,27 @@ func listHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func getRedirectURL(r *http.Request) string {
+	prefix := r.Header.Get("X-Forwarded-Prefix")
+	if prefix == "" {
+		return "/"
+	}
+	return prefix
+}
+
 func addHandler(w http.ResponseWriter, r *http.Request) {
 	if !isDynamoDBConfigured {
-		http.Redirect(w, r, "/", http.StatusSeeOther)
+		http.Redirect(w, r, getRedirectURL(r), http.StatusSeeOther)
 		return
 	}
 	if r.Method != http.MethodPost {
-		http.Redirect(w, r, "/", http.StatusSeeOther)
+		http.Redirect(w, r, getRedirectURL(r), http.StatusSeeOther)
 		return
 	}
 
 	text := r.FormValue("text")
 	if text == "" {
-		http.Redirect(w, r, "/", http.StatusSeeOther)
+		http.Redirect(w, r, getRedirectURL(r), http.StatusSeeOther)
 		return
 	}
 
@@ -290,16 +304,16 @@ func addHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	http.Redirect(w, r, "/", http.StatusSeeOther)
+	http.Redirect(w, r, getRedirectURL(r), http.StatusSeeOther)
 }
 
 func generateHandler(w http.ResponseWriter, r *http.Request) {
 	if !isBedrockConfigured {
-		http.Redirect(w, r, "/", http.StatusSeeOther)
+		http.Redirect(w, r, getRedirectURL(r), http.StatusSeeOther)
 		return
 	}
 	if r.Method != http.MethodPost {
-		http.Redirect(w, r, "/", http.StatusSeeOther)
+		http.Redirect(w, r, getRedirectURL(r), http.StatusSeeOther)
 		return
 	}
 
@@ -375,16 +389,16 @@ AI:`
 		return
 	}
 
-	http.Redirect(w, r, "/", http.StatusSeeOther)
+	http.Redirect(w, r, getRedirectURL(r), http.StatusSeeOther)
 }
 
 func deleteHandler(w http.ResponseWriter, r *http.Request) {
 	if !isDynamoDBConfigured {
-		http.Redirect(w, r, "/", http.StatusSeeOther)
+		http.Redirect(w, r, getRedirectURL(r), http.StatusSeeOther)
 		return
 	}
 	if r.Method != http.MethodPost {
-		http.Redirect(w, r, "/", http.StatusSeeOther)
+		http.Redirect(w, r, getRedirectURL(r), http.StatusSeeOther)
 		return
 	}
 
@@ -403,7 +417,7 @@ func deleteHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	http.Redirect(w, r, "/", http.StatusSeeOther)
+	http.Redirect(w, r, getRedirectURL(r), http.StatusSeeOther)
 }
 
 func getTodos() ([]Todo, error) {
